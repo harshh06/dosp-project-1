@@ -184,7 +184,6 @@ fn benchmark_workers_dynamic(
   let final_result = coordinate_work(state_with_initial_work, boss_inbox, k)
 
   list.each(final_result, fn(i: Int) { io.println(int.to_string(i)) })
-  
 }
 
 pub fn main() {
@@ -204,20 +203,10 @@ pub fn main() {
     _ -> 50_000
   }
 
-  // Known k values that have solutions (up to 506)
-  // OEIS sequence A001032 
-  // site: https://oeis.org/A001032
-  let valid_k_values = [
-    1, 2, 11, 23, 24, 26, 33, 47, 49, 50, 59, 73, 74, 88, 96, 97, 107, 121, 122, 146, 
-    169, 177, 184, 191, 193, 194, 218, 239, 241, 242, 249, 289, 297, 299, 311, 312, 
-    313, 337, 338, 347, 352, 361, 362, 376, 383, 393, 407, 409, 431, 443, 457, 458, 
-    479, 481, 491, 506
-  ]
-
   // Check if k should be computed
   let should_compute = case k {
     // For k <= 506: only compute if k is in the valid list
-    k if k <= 506 -> list.contains(valid_k_values, k)
+    k if k <= 506 -> list.contains(helpers.valid_k_values, k)
     // For k > 506: always compute (unknown territory)
     _ -> True
   }

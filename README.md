@@ -36,7 +36,7 @@ o/p last line: gleam run -- lukas 100000 4  0.13s user 0.15s system 186% cpu 0.1
 - **CPU Time / Real Time Ratio:** [1.86] (which matches the 186% cpu shown)
 
 **Parallelism Analysis:**
-[The ratio of 2.16 indicates effective utilization of approximately 2.16 cores out of the available cores. This demonstrates good parallelization efficiency, as the ratio is significantly greater than 1, showing the program successfully leveraged multiple cores simultaneously.]
+[The ratio of 1.86 indicates effective utilization of approximately 2.16 cores out of the available cores. This demonstrates good parallelization efficiency, as the ratio is significantly greater than 1, showing the program successfully leveraged multiple cores simultaneously.]
 
 ### Maximum Problem Size
 
