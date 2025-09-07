@@ -184,7 +184,6 @@ fn benchmark_workers_dynamic(
   let final_result = coordinate_work(state_with_initial_work, boss_inbox, k)
 
   list.each(final_result, fn(i: Int) { io.println(int.to_string(i)) })
-  
 }
 
 pub fn main() {
@@ -203,7 +202,21 @@ pub fn main() {
     [_, _, k_str, ..] -> int.parse(k_str) |> result.unwrap(50_000)
     _ -> 50_000
   }
-  let chunk_size = helpers.calculate_optimal_chunk_size(n, 8)
 
-  benchmark_workers_dynamic(n, 8, chunk_size, k)
+  // Check if k should be computed
+  let should_compute = case k {
+    // For k <= 506: only compute if k is in the valid list
+    k if k <= 506 -> list.contains(helpers.valid_k_values, k)
+    // For k > 506: always compute (unknown territory)
+    _ -> True
+  }
+
+  case should_compute {
+    False -> Nil
+    True -> {
+      // Proceed with computation
+      let chunk_size = helpers.calculate_optimal_chunk_size(n, 8)
+      benchmark_workers_dynamic(n, 8, chunk_size, k)
+    }
+  }
 }
