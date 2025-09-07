@@ -84,6 +84,8 @@ Smart Chunk Sizing: The program automatically adjusts how much work each worker 
 
 ## Math Optimizations:
 
+**For k values ≤ 506, we use a precomputed lookup table based on OEIS sequence A001032, which catalogs all k values where consecutive square sums can equal perfect squares. If k ≤ 506 and is not in this mathematically proven list (e.g., k=3, 4, 5, 6), the program exits immediately without computation. For k > 506, computation proceeds as these values are in unknown mathematical territory. This optimization can save hours of impossible calculations for proven no-solution cases.**
+
 Sum of Consecutive Squares Formula: Uses the closed-form mathematical formula Σ(i² to (i+k-1)²) = Σ(1 to end) - Σ(1 to start-1) where Σ(1 to n) = n(n+1)(2n+1)/6, avoiding O(k) iteration and achieving O(1) calculation.
 Perfect Square Detection: Uses int.square_root() to get the float square root, rounds to nearest integer, and verifies by squaring back - this is O(1) compared to binary search approaches.
 Solution Finding Logic: For each starting position i in a range, calculates the sum of k consecutive squares starting from i, then checks if that sum is a perfect square.
