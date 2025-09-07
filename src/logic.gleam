@@ -1,6 +1,6 @@
-import gleam/list
-import gleam/int
 import gleam/float
+import gleam/int
+import gleam/list
 
 // calculate the sum of squares from start to start + k - 1
 
