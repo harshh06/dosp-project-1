@@ -21,57 +21,59 @@ I implemented a dynamic work queue where workers immediately receive new chunks 
 **Program Output:**
 
 ```
-30
-64
-3000
-12598
-294030
+No output!
 
 On running this command: time gleam run -- lukas 1000000 4
-o/p last line: gleam run -- lukas 1000000 4  0.75s user 0.27s system 216% cpu 0.472 total
+o/p last line: gleam run -- lukas 100000 4  0.13s user 0.15s system 186% cpu 0.150 total
 ```
 
-**216% cpu usage**
+**186% cpu usage**
 
 **Performance Metrics:**
 
-- **Real Time:** [0.472] seconds
-- **CPU Time:** [1.02] seconds
-- **CPU Time / Real Time Ratio:** [2.16] 1.02 / 0.472 = 2.16 (which matches the 216% cpu shown)
+- **Real Time:** [0.150] seconds
+- **CPU Time:** [0.28] seconds
+- **CPU Time / Real Time Ratio:** [1.86] (which matches the 186% cpu shown)
 
 **Parallelism Analysis:**
 [The ratio of 2.16 indicates effective utilization of approximately 2.16 cores out of the available cores. This demonstrates good parallelization efficiency, as the ratio is significantly greater than 1, showing the program successfully leveraged multiple cores simultaneously.]
 
 ### Maximum Problem Size
 
-**Largest Problem Solved:** `lukas [1_000_000_000] [4]`
+**Largest Problem Solved:** `lukas [1000000000] [194]`
 
 **Details:**
-Successfully computed Lucas number for n = 1_000_000_000 and k = 4.
+Successfully computed Lucas number for n = 1_000_000_000 and k = 194.
 
 **Program Output:**
 
 ```
-30
-64
-3000
-12598
-294030
-2444128
-28812000
-474148414
+83
+112
+1344
+1567
+71572
+82659
+648848
+561907
+27950439
+32274340
+219179828
+253086595
 ```
 
-**655% cpu usage**
+gleam run -- lukas 1000000000 194 238.42s user 8.51s system 616% cpu 40.078 total
+
+**616% cpu usage**
 
 **Performance Metrics:**
 
-- **Real Time:** [258.51] seconds
-- **CPU Time:** [1694.63] seconds
-- **CPU Time / Real Time Ratio:** [6.55] (1694.63 / 258.51 = 6.55, which matches the 655% cpu shown)
+- **Real Time:** [40.078] seconds
+- **CPU Time:** [238.42 + 8.51 = 246.93] seconds
+- **CPU Time / Real Time Ratio:** [6.16] (which matches the 616% cpu shown)
 
 **Parallelism Analysis:**
-[The ratio of 6.55 indicates excellent utilization of approximately 6.55 cores out of the available cores. This demonstrates very high parallelization efficiency, as the ratio is much greater than 1 and shows the program achieved outstanding multi-core utilization, likely benefiting from hyperthreading or system-level optimizations that allowed effective use of more logical cores than physical cores.]
+[The ratio of 6.16 indicates excellent utilization of approximately 6.55 cores out of the available cores. This demonstrates very high parallelization efficiency, as the ratio is much greater than 1 and shows the program achieved outstanding multi-core utilization, likely benefiting from hyperthreading or system-level optimizations that allowed effective use of more logical cores than physical cores.]
 
 ## Implementation Notes
 
@@ -82,9 +84,17 @@ Smart Chunk Sizing: The program automatically adjusts how much work each worker 
 
 ## Math Optimizations:
 
-Instead of adding up squares one by one, I used a mathematical formula to calculate the sum instantly
-Added careful handling to prevent integer overflow when dealing with very large numbers
-Used binary search to check if numbers are perfect squares, which is much faster than calculating square roots
+Sum of Consecutive Squares Formula: Uses the closed-form mathematical formula Σ(i² to (i+k-1)²) = Σ(1 to end) - Σ(1 to start-1) where Σ(1 to n) = n(n+1)(2n+1)/6, avoiding O(k) iteration and achieving O(1) calculation.
+Perfect Square Detection: Uses int.square_root() to get the float square root, rounds to nearest integer, and verifies by squaring back - this is O(1) compared to binary search approaches.
+Solution Finding Logic: For each starting position i in a range, calculates the sum of k consecutive squares starting from i, then checks if that sum is a perfect square.
+
+Problem Being Solved:
+Find all starting points i where i² + (i+1)² + (i+2)² + ... + (i+k-1)² = perfect square
+Key Optimizations:
+
+Mathematical: Replaces naive O(k) summation with O(1) closed-form calculation
+Efficient: Uses direct square root instead of iterative perfect square testing
+Scalable: Processes ranges in parallel-friendly chunks
 
 ## Worker Management:
 
