@@ -16,7 +16,7 @@ pub type WorkerMsg {
 }
 
 pub type BossMsg {
-  Solutions(solutions: List(Int), worker_id: Int)
+  Solutions(solutions: List(Int), worker_id: Int, cpu_time: Int)
   // solutions found by the worker
 }
 
@@ -28,6 +28,8 @@ pub type BossState {
   BossState(
     solutions: List(Int),
     // solutions found so far
+    total_cpu_time: Int,
+    // total CPU time used by workers
     queue: List(#(Int, Int)),
     // work chunks waiting to be assigned
     workers: List(#(Int, process.Subject(WorkerMsg))),
@@ -37,6 +39,15 @@ pub type BossState {
     to_stop: Int,
     // number of workers to stop
   )
+}
+
+// get current system time in milliseconds
+
+@external(erlang, "erlang", "system_time")
+fn system_time_native() -> Int
+
+pub fn get_time() -> Int {
+  system_time_native()
 }
 
 /// square sum logic functions
@@ -93,7 +104,9 @@ fn worker_handle(
   msg: WorkerMsg,
 ) -> actor.Next(WorkerState, WorkerMsg) {
   case msg {
-    Work(start, end, k, reply) -> {
+    Work(start, end, k, reply) -> {      
+      let start_time = get_time()
+
       // find solutions in the assigned range
       let solutions = find_solutions_in_range(start, end, k)
 
@@ -109,8 +122,11 @@ fn worker_handle(
       //   <> " solutions.",
       // )
 
+      let end_time = get_time()
+      let duration = end_time - start_time
+
       // send the solutions back to the boss
-      process.send(reply, Solutions(solutions, state.id))
+      process.send(reply, Solutions(solutions, state.id, duration))
       actor.continue(state)
     }
     Stop -> actor.stop()
@@ -163,12 +179,12 @@ fn assign_work(
 ) -> BossState {
   case state.queue {
     [] -> {
-      // 没有更多工作 - 告诉worker停止
+      // no more work - tell worker to stop
       process.send(worker_subject, Stop)
       BossState(..state, to_stop: state.to_stop - 1)
     }
     [head, ..rest] -> {
-      // 分配工作块给worker
+      // assign work chunk to worker
       let #(start, end) = head
       process.send(worker_subject, Work(start, end, k, boss_inbox))
       BossState(..state, queue: rest, inflight: state.inflight + 1)
@@ -187,24 +203,26 @@ fn coordinate_work(
   state: BossState,
   boss_inbox: process.Subject(BossMsg),
   k: Int,
-) -> List(Int) {
+) -> #(List(Int), Int) {
   case state.inflight > 0 || state.to_stop > 0 {
-    False -> state.solutions
-    // 所有工作完成！
+    False -> #(state.solutions, state.total_cpu_time)
+    // all work done
     True -> {
-      // 等待worker报告
+      // wait for messages from workers
       case process.receive(boss_inbox, within: 30_000) {
-        Ok(Solutions(new_solutions, worker_id)) -> {
+        Ok(Solutions(new_solutions, worker_id, cpu_time)) -> {
           let updated_solutions = list.append(state.solutions, new_solutions)
+          let updated_cpu_time = state.total_cpu_time + cpu_time
           let new_inflight = state.inflight - 1
 
-          // 给这个worker分配更多工作
+          // assign more work to this worker
           case find_worker(state.workers, worker_id) {
             Ok(#(_, worker_subject)) -> {
               let new_state =
                 BossState(
                   ..state,
                   solutions: updated_solutions,
+                  total_cpu_time: updated_cpu_time,
                   inflight: new_inflight,
                 )
               let assigned_state =
@@ -216,6 +234,7 @@ fn coordinate_work(
                 BossState(
                   ..state,
                   solutions: updated_solutions,
+                  total_cpu_time: updated_cpu_time,
                   inflight: new_inflight,
                 )
               coordinate_work(new_state, boss_inbox, k)
@@ -223,8 +242,8 @@ fn coordinate_work(
           }
         }
         Error(_) -> {
-          io.println("等待worker响应超时")
-          state.solutions
+          io.println("Timeout waiting for worker response")
+          #(state.solutions, state.total_cpu_time)
         }
       }
     }
@@ -232,15 +251,6 @@ fn coordinate_work(
 }
 
 /// benchmark and main functions
-// get current system time in milliseconds
-
-@external(erlang, "erlang", "system_time")
-fn system_time_native() -> Int
-
-pub fn system_time() -> Int {
-  system_time_native() / 1_000_000
-  // convert to milliseconds
-}
 
 // test performance with different work unit sizes
 fn test_work_unit_size(
@@ -248,12 +258,12 @@ fn test_work_unit_size(
   k: Int,
   num_workers: Int,
   work_unit_size: Int,
-) -> #(List(Int), Int) {
+) -> #(List(Int), Int, Int) {
   io.println(
     "\n=== test work unit size: " <> int.to_string(work_unit_size) <> " ===",
   )
 
-  let start_time = system_time()
+  let start_time = get_time()
   let boss_inbox = process.new_subject()
 
   // create workers
@@ -284,6 +294,7 @@ fn test_work_unit_size(
   let initial_state =
     BossState(
       solutions: [],
+      total_cpu_time: 0,
       queue: work_queue,
       workers: workers,
       inflight: 0,
@@ -298,20 +309,27 @@ fn test_work_unit_size(
     })
 
   // start coordinating work
-  let solutions = coordinate_work(state_after_initial_assignment, boss_inbox, k)
+  let #(solutions, total_cpu_time) = coordinate_work(state_after_initial_assignment, boss_inbox, k)
 
-  let end_time = system_time()
-  let duration = end_time - start_time
+  let end_time = get_time()
+  let real_duration = end_time - start_time
 
   io.println("Found " <> int.to_string(list.length(solutions)) <> " solutions")
-  io.println("Duration: " <> int.to_string(duration) <> " ms")
+  io.println("REAL TIME: " <> int.to_string(real_duration) <> " ms")
+  io.println("CPU TIME: " <> int.to_string(total_cpu_time) <> " ms")
 
-  #(solutions, duration)
+  let cpu_real_ratio = case real_duration > 0 {
+    True -> int.to_float(total_cpu_time) /. int.to_float(real_duration)
+    False -> 0.0
+  }
+  io.println("CPU/REAL RATIO: " <> float.to_string(cpu_real_ratio))
+
+  #(solutions, real_duration, total_cpu_time)
 }
 
 pub fn main() {
   // test cases
-  let n = 100
+  let n = 1_000_000
   let k = 24
   let num_workers = 4
 
@@ -328,31 +346,33 @@ pub fn main() {
 
   // test different work unit sizes to find the best one
   let work_unit_sizes = [100, 500, 1000, 2000, 5000, 10_000]
+  // let work_unit_sizes = [100]
 
   let results =
     list.map(work_unit_sizes, fn(work_unit_size) {
-      let #(solutions, time) =
+      let #(solutions, real_duration, total_cpu_time) =
         test_work_unit_size(n, k, num_workers, work_unit_size)
-      #(work_unit_size, solutions, time)
+      #(work_unit_size, solutions, real_duration, total_cpu_time)
     })
 
   // find the best result
   let best_result =
-    list.fold(results, #(0, [], 999_999), fn(best, current) {
-      let #(_, _, best_time) = best
-      let #(_, _, current_time) = current
+    list.fold(results, #(0, [], 999_999, 0), fn(best, current) {
+      let #(_, _, best_time, _) = best
+      let #(_, _, current_time, _) = current
       case current_time < best_time {
         True -> current
         False -> best
       }
     })
 
-  let #(best_work_unit_size, final_solutions, best_time) = best_result
+  let #(best_work_unit_size, final_solutions, best_time, best_cpu_time) = best_result
 
-  io.println("\n=== Best Result ===")
-  io.println("Best work unit size: " <> int.to_string(best_work_unit_size))
-  io.println("Best execution time: " <> int.to_string(best_time) <> " ms")
-  io.println("Found solutions:")
+  // io.println("\n=== Best Result ===")
+  // io.println("Best work unit size: " <> int.to_string(best_work_unit_size))
+  // io.println("Best execution time: " <> int.to_string(best_time) <> " ms")
+  // io.println("Best CPU time: " <> int.to_string(best_cpu_time) <> " ms")
+  io.println("\nFound solutions:")
   list.each(final_solutions, fn(solution) {
     io.println(int.to_string(solution))
   })
