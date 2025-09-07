@@ -43,8 +43,7 @@ fn worker_handle(
 ) -> actor.Next(WorkerState, WorkerMsg) {
   case msg {
     Work(start, stop, k, reply) -> {
-      let list_of_nums = logic.range(start, stop)
-      let p_sqs = logic.process_p_sq(list_of_nums, k)
+      let p_sqs = logic.find_solutions_in_range(start, stop, k)
       // let sum = sum_range(start, stop)
       process.send(reply, BossMsg(p_sqs, state.id))
       actor.continue(state)
@@ -143,10 +142,6 @@ fn benchmark_workers_dynamic(
   chunk_size: Int,
   k: Int,
 ) -> Nil {
-  // io.println("Testing " <> int.to_string(num_workers) <> " workers with dynamic work queue...")
-  // io.println("Chunk size: " <> int.to_string(chunk_size) <> " (creates " <> int.to_string(n / chunk_size) <> " chunks)")
-
-  // let start_time = helpers.system_time()
   let boss_inbox = process.new_subject()
 
   // Start workers
@@ -168,8 +163,6 @@ fn benchmark_workers_dynamic(
   let work_chunks = helpers.create_work_chunks(n, chunk_size)
   let _total_chunks = list.length(work_chunks)
 
-  // io.println("Created " <> int.to_string(total_chunks) <> " work chunks")
-
   // Initialize boss state
   let initial_state =
     BossState(
@@ -190,14 +183,8 @@ fn benchmark_workers_dynamic(
   // Let the dynamic coordination begin!
   let final_result = coordinate_work(state_with_initial_work, boss_inbox, k)
 
-  // let end_time = helpers.system_time()
-  // let duration = end_time - start_time
-
-  // io.println("Time: " <> int.to_string(duration) <> " ms")
   list.each(final_result, fn(i: Int) { io.println(int.to_string(i)) })
-  // io.println("Result: " <> int.to_string(final_result))
-
-  // #(final_result, duration)
+  
 }
 
 pub fn main() {
@@ -216,18 +203,7 @@ pub fn main() {
     [_, _, k_str, ..] -> int.parse(k_str) |> result.unwrap(50_000)
     _ -> 50_000
   }
-
-  // Use them
-  // io.println("Name: " <> name)
-  // io.println("N: " <> int.to_string(n)) 
-  // io.println("K: " <> int.to_string(k))
-  // let n = 100_000_000
   let chunk_size = helpers.calculate_optimal_chunk_size(n, 8)
-
-  // io.println("=== DYNAMIC WORK QUEUE BENCHMARK ===")
-  // io.println("Problem: Sum numbers 1 to " <> int.to_string(n))
-  // io.println("Strategy: Workers get new work as soon as they finish")
-  // io.println("")
 
   benchmark_workers_dynamic(n, 8, chunk_size, k)
 }
