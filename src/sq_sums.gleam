@@ -183,7 +183,10 @@ fn benchmark_workers_dynamic(
   // Let the dynamic coordination begin!
   let final_result = coordinate_work(state_with_initial_work, boss_inbox, k)
 
-  list.each(final_result, fn(i: Int) { io.println(int.to_string(i)) })
+  case list.is_empty(final_result) {
+    True -> io.println("No valid result output!")
+    False -> list.each(final_result, fn(i: Int) { io.println(int.to_string(i)) })
+  }
 }
 
 pub fn main() {

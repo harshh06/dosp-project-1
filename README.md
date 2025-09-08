@@ -21,7 +21,7 @@ I implemented a dynamic work queue where workers immediately receive new chunks 
 **Program Output:**
 
 ```
-No output!
+No valid result output (the program produced no solution for this input)!
 
 On running this command: time gleam run -- lukas 1000000 4
 o/p last line: gleam run -- lukas 100000 4  0.13s user 0.15s system 186% cpu 0.150 total
@@ -40,7 +40,7 @@ o/p last line: gleam run -- lukas 100000 4  0.13s user 0.15s system 186% cpu 0.1
 
 ### Maximum Problem Size
 
-**Largest Problem Solved:** `lukas [1000000000] [194]`
+**Largest Problem Solved:** `lukas 1000000000 194`
 
 **Details:**
 Successfully computed Lucas number for n = 1_000_000_000 and k = 194.
@@ -60,9 +60,10 @@ Successfully computed Lucas number for n = 1_000_000_000 and k = 194.
 32274340
 219179828
 253086595
-```
 
-gleam run -- lukas 1000000000 194 238.42s user 8.51s system 616% cpu 40.078 total
+On running this command: time gleam run -- lukas 1000000000 194
+o/p last line: gleam run -- lukas 1000000000 194 238.42s user 8.51s system 616% cpu 40.078 total
+```
 
 **616% cpu usage**
 
